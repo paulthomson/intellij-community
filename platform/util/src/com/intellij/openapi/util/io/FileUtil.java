@@ -860,8 +860,19 @@ public class FileUtil extends FileUtilRt {
         if (p1 > 2) {
           if (PathUtilRt.isWindowsUNCRoot(normalizedPath, p1)) {
             int p2 = normalizedPath.indexOf('/', p1 + 1);
-            if (p2 > p1 + 1) return normalizedPath.substring(0, p2);
-            if (p2 < 0) return normalizedPath;
+            if (p2 > p1 + 1
+                // Avoid "//server/../[...]"
+                //              p1^  ^p2
+                && !isDotDot(normalizedPath, p1 + 1, p2)) {
+
+              return normalizedPath.substring(0, p2);
+            }
+            if (p2 < 0
+                // Avoid "//server/.."
+                //              p1^
+                && !isDotDot(normalizedPath, p1 + 1, normalizedPath.length())) {
+              return normalizedPath;
+            }
           }
           // else the path doesn't look like UNC, e.g. "//.."
         }
@@ -876,6 +887,11 @@ public class FileUtil extends FileUtilRt {
     }
 
     return null;
+  }
+
+  private static boolean isDotDot(@NotNull String path, int start, int end) {
+    if (start + 2 != end) return false;
+    return path.charAt(start) == '.' && path.charAt(start + 1) == '.';
   }
 
   public static void collectMatchedFiles(@NotNull File root, @NotNull Pattern pattern, @NotNull List<? super File> outFiles) {
